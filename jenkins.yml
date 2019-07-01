@@ -1,0 +1,103 @@
+jenkins:
+  agentProtocols:
+  - "JNLP4-connect"
+  - "Ping"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: false
+  disableRememberMe: false
+  mode: NORMAL
+  numExecutors: 10
+  primaryView:
+    all:
+      name: "all"
+  quietPeriod: 5
+  securityRealm: # (2)
+    local:
+      allowsSignup: false
+      enableCaptcha: false
+      users:
+      - id: "jenkins"
+        password: ${rootPassword}
+  slaveAgentPort: 50000
+  views:
+  - all:
+      name: "all"
+tool:
+  git:
+    installations:
+    - home: "git"
+      name: "Default"
+  jdk: # (3)
+    installations:
+    - home: "/usr/local/openjdk-8/"
+      name: "jdk"
+  maven: # (4)
+    installations:
+    - name: "maven"
+      home: "/usr/bin/"
+
+credentials: # (5)
+  system:
+    domainCredentials:
+      - domain :
+          name: "github.com"
+          description: "GitHub"
+        credentials:
+          - usernamePassword:
+              scope: SYSTEM
+              id: github
+              username: jitender1987
+              password: ${githubPassword}
+jobs:
+  - script: >
+      pipelineJob('pipeline')
+         {
+                definition
+                {
+                       cps
+                       {
+                           script('''
+                                pipeline 
+                                {
+                                    agent any
+                                    stages {
+                                                  stage('Checkout external proj') 
+                                                  {
+                                                       steps {
+                                                               checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/jitender1987/maven_project_poc.git']]])
+                                                             }
+                                                  }
+                                                  stage('Build code')
+                                                  {
+                                                      steps {
+                                                              sh "mvn clean compile"
+                                                            }
+                                                  }
+                                                  stage('Test')
+                                                  {
+                                                      steps {
+                                                              sh "mvn test"
+                                                            }
+                                                  }
+                                                  stage('Integration Testing ')
+                                                  {
+                                                      steps {
+                                                              sh "mvn verify"
+                                                            }
+                                                  }
+                                                  stage('Sonar Code quality')
+                                                  {
+                                                      steps {
+                                                              sh "mvn verify sonar:sonar"
+                                                            }
+                                                  }
+                                         }
+                                }
+                         '''.stripIndent())
+                       }
+                 }
+          }
